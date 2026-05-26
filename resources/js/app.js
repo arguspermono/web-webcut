@@ -1,4 +1,3 @@
-import './bootstrap';
 import axios from 'axios';
 import videojs from 'video.js';
 import noUiSlider from 'nouislider';
@@ -65,19 +64,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Poll media status until 'ready'
     function pollMediaStatus(mediaId, attempts = 0) {
-        if (attempts > 30) {
-            alert('Processing timed out. Please try again.');
+        if (attempts > 60) {
+            uploadLoader.innerText = 'Processing timed out. Please refresh and try again.';
+            uploadZone.style.pointerEvents = 'auto';
             return;
         }
         setTimeout(() => {
-            // For simplicity, just wait and load. A GET /media/{id}/status route can be added in Phase 8.
-            // For now, assume processing completes within ~4 seconds for small files.
-            if (attempts >= 4) {
-                loadEditor(mediaId);
-            } else {
-                pollMediaStatus(mediaId, attempts + 1);
-            }
-        }, 1000);
+            axios.get(`/media/${mediaId}/status`)
+                .then(response => {
+                    const { status } = response.data;
+                    if (status === 'ready') {
+                        loadEditor(mediaId);
+                    } else if (status === 'failed') {
+                        uploadLoader.innerText = 'Processing failed. Please try again.';
+                        uploadZone.style.pointerEvents = 'auto';
+                    } else {
+                        uploadLoader.innerText = `Processing video… (${status})`;
+                        pollMediaStatus(mediaId, attempts + 1);
+                    }
+                })
+                .catch(() => pollMediaStatus(mediaId, attempts + 1));
+        }, 2000);
     }
 
     // ─── Editor ───────────────────────────────────────────────────────────────

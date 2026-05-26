@@ -11,6 +11,7 @@ Route::get('/', function () {
 
 // Monolithic Routes
 Route::post('/media/upload', [MediaUploadController::class, 'store'])->name('media.upload');
+Route::get('/media/{media}/status', [MediaUploadController::class, 'status'])->name('media.status');
 Route::get('/stream/{media}', [StreamController::class, 'show'])->name('media.stream');
 Route::post('/media/edit', [MediaEditController::class, 'store'])->name('media.edit');
 Route::get('/media/edit/{mediaEdit}', [MediaEditController::class, 'show'])->name('media.edit.status');

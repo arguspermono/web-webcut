@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreMediaRequest;
+use App\Models\Media;
 use App\Services\MediaService;
 use Illuminate\Http\JsonResponse;
 
@@ -26,9 +27,20 @@ class MediaUploadController extends Controller
         $media = $this->mediaService->processUpload($file);
 
         return response()->json([
-            'message' => 'Video uploaded and processing started.',
+            'message'  => 'Video uploaded and processing started.',
             'media_id' => $media->id,
-            'status' => $media->status
+            'status'   => $media->status
         ], 202);
+    }
+
+    /**
+     * Return the current processing status of a media item.
+     */
+    public function status(Media $media): JsonResponse
+    {
+        return response()->json([
+            'id'     => $media->id,
+            'status' => $media->status,
+        ]);
     }
 }
