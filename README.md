@@ -48,12 +48,12 @@ Follow these steps to set up the project locally:
    ```
 
 4. **Prepare Database**:
-   WebCut uses SQLite by default. Ensure the database file is initialized (typically configured in `.env` to use database file or `:memory:`, by default Laravel uses SQLite in `database/database.sqlite`):
+   WebCut uses MySQL. Create the `webcut` database in MySQL and run the migrations:
    ```bash
-   # Create SQLite database file if it doesn't exist
-   touch database/database.sqlite
+   # Log into MySQL and create the database (if not using a GUI like phpMyAdmin/HeidiSQL)
+   mysql -u root -e "CREATE DATABASE IF NOT EXISTS webcut;"
    
-   # Run migrations
+   # Run migrations to populate the tables
    php artisan migrate
    ```
 
