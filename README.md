@@ -1,86 +1,99 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# WebCut
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+WebCut is a premium, monolithic Laravel-based multimedia streaming and browser-based video editing platform. It provides a sleek, dark-themed user interface to upload video files, watch them via progressive streaming, select segment ranges (using a custom timeline slider), and perform complex FFmpeg operations like trimming, speed adjustments, and audio muting directly from the web browser.
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Key Features
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+1. **Secure Ingestion & Auto-Transcoding**: Validates media uploads and normalizes video in the background into web-optimized H.264/AAC MP4 formats (`-movflags +faststart`) while generating thumbnail previews.
+2. **HTTP 206 Partial Content Streaming**: Handles HTTP range requests for instant seek/scrubbing capability.
+3. **Glassmorphic Interactive Editor**: A responsive, premium dark-mode dashboard powered by Video.js, noUiSlider, and custom CSS variables.
+4. **Complex Edit Pipeline**: Combines trimming, speed adjustments (utilizing chained `atempo` filters for arbitrary speed factors), and audio modifications into a single-pass, highly optimized FFmpeg pipeline processed asynchronously via background queues.
+5. **Robust Test Coverage**: Includes feature integration tests for the upload/edit lifecycle and unit tests for internal audio speed calculation structures.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+---
 
-## Learning Laravel
+## System Requirements
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+- **PHP**: `^8.2` (Laravel 13 compatible)
+- **Composer**
+- **Node.js & npm**
+- **SQLite**
+- **FFmpeg**: Must be installed globally and accessible in your system's `PATH`.
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+---
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+## Installation & Setup
 
-## Agentic Development
+Follow these steps to set up the project locally:
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+1. **Clone the repository** and navigate to the project directory:
+   ```bash
+   git clone https://github.com/arguspermono/web-webcut.git
+   cd web-webcut
+   ```
 
-```bash
-composer require laravel/boost --dev
+2. **Install PHP and JS dependencies**:
+   ```bash
+   composer install
+   npm install
+   ```
 
-php artisan boost:install
-```
+3. **Configure Environment File**:
+   Copy the example environment file and generate the application key:
+   ```bash
+   cp .env.example .env
+   php artisan key:generate
+   ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+4. **Prepare Database**:
+   WebCut uses SQLite by default. Ensure the database file is initialized (typically configured in `.env` to use database file or `:memory:`, by default Laravel uses SQLite in `database/database.sqlite`):
+   ```bash
+   # Create SQLite database file if it doesn't exist
+   touch database/database.sqlite
+   
+   # Run migrations
+   php artisan migrate
+   ```
 
-## Contributing
+5. **Link Public Storage**:
+   Create a symbolic link from `public/storage` to `storage/app/public` so files are accessible to the browser:
+   ```bash
+   php artisan storage:link
+   ```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
-
-## Code of Conduct
-
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+---
 
 ## Running the Application
 
+To run WebCut, you need to start three processes simultaneously:
+
+1. **Vite Development Server** (handles asset building and hot reload):
+   ```bash
+   npm run dev
+   ```
+
+2. **Laravel Server** (handles HTTP requests):
+   ```bash
+   php artisan serve
+   ```
+
+3. **Queue Worker** (processes transcodes and edit jobs in the background):
+   ```bash
+   php artisan queue:work
+   ```
+
+Now, navigate to [http://localhost:8000](http://localhost:8000) in your web browser.
+
+---
+
+## Running Tests
+
+Run the test suite using Artisan:
+
 ```bash
-# Install PHP dependencies
-composer install
-
-# Install JS dependencies
-npm install
-
-# Copy .env and generate key
-cp .env.example .env
-php artisan key:generate
-
-# Run migrations
-php artisan migrate
-
-# Start queue worker (process FFmpeg jobs)
-php artisan queue:work
-
-# Start Vite dev server
-npm run dev
-
-# Serve the application
-php artisan serve
+php artisan test
 ```
 
-> **Note**: Ensure `ffmpeg` is installed and available in your system PATH.
+*Note: Ensure your CLI environment has the `pdo_sqlite` PHP extension enabled to execute the test suite successfully.*
