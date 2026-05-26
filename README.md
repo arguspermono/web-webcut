@@ -56,3 +56,31 @@ If you discover a security vulnerability within Laravel, please send an e-mail t
 ## License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+
+## Running the Application
+
+```bash
+# Install PHP dependencies
+composer install
+
+# Install JS dependencies
+npm install
+
+# Copy .env and generate key
+cp .env.example .env
+php artisan key:generate
+
+# Run migrations
+php artisan migrate
+
+# Start queue worker (process FFmpeg jobs)
+php artisan queue:work
+
+# Start Vite dev server
+npm run dev
+
+# Serve the application
+php artisan serve
+```
+
+> **Note**: Ensure `ffmpeg` is installed and available in your system PATH.
