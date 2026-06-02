@@ -13,9 +13,9 @@ return new class extends Migration
     {
         Schema::create('media_edits', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->foreignUuid('parent_media_id')->constrained('media')->cascadeOnDelete();
-            $table->string('storage_path')->nullable();
-            $table->json('edit_parameters');
+            $table->foreignUuid('media_id')->constrained('media')->cascadeOnDelete();
+            $table->string('output_path')->nullable();
+            $table->json('edit_params');
             $table->enum('status', ['processing', 'ready', 'failed'])->default('processing');
             $table->timestamps();
         });

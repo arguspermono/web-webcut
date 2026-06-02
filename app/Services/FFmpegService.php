@@ -10,6 +10,15 @@ use Symfony\Component\Process\Exception\ProcessFailedException;
 class FFmpegService
 {
     /**
+     * Get the full path to the ffmpeg binary.
+     * Reads FFMPEG_BINARY from .env, falls back to 'ffmpeg' (relies on PATH).
+     */
+    protected function ffmpegBin(): string
+    {
+        return env('FFMPEG_BINARY', 'ffmpeg');
+    }
+
+    /**
      * Transcode the video to standardized MP4 (H.264, YUV420p, faststart).
      */
     public function transcode(string $inputPath, string $outputPath): bool
@@ -21,7 +30,7 @@ class FFmpegService
         $fullOutputPath = Storage::disk('public')->path($outputPath);
 
         $command = [
-            'ffmpeg', '-y', '-i', $fullInputPath,
+            $this->ffmpegBin(), '-y', '-i', $fullInputPath,
             '-c:v', 'libx264',
             '-preset', 'fast',
             '-crf', '23',
@@ -44,7 +53,7 @@ class FFmpegService
         $fullOutputPath = Storage::disk('public')->path($outputPath);
 
         $command = [
-            'ffmpeg', '-y', '-ss', $time, '-i', $fullInputPath,
+            $this->ffmpegBin(), '-y', '-ss', $time, '-i', $fullInputPath,
             '-vframes', '1',
             '-q:v', '2',
             $fullOutputPath
@@ -68,7 +77,7 @@ class FFmpegService
         $fullOutput = Storage::disk('public')->path($outputPath);
 
         // ── Build command ─────────────────────────────────────────────────────
-        $cmd = ['ffmpeg', '-y'];
+        $cmd = [$this->ffmpegBin(), '-y'];
 
         // 1. Trim: input-seeking (fast, stream-copy friendly)
         $startTime = isset($params['start_time']) ? (float) $params['start_time'] : 0;

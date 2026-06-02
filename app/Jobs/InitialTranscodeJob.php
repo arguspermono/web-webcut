@@ -31,7 +31,8 @@ class InitialTranscodeJob implements ShouldQueue
      */
     protected function ffmpegAvailable(): bool
     {
-        $process = new Process(['ffmpeg', '-version']);
+        $binary = env('FFMPEG_BINARY', 'ffmpeg');
+        $process = new Process([$binary, '-version']);
         try {
             $process->run();
             return $process->isSuccessful();
