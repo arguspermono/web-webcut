@@ -56,4 +56,29 @@ class MediaEditController extends Controller
 
         return response()->json($data);
     }
+    public function edit(Media $media)
+    {
+        return view('editor', compact('media'));
+    }
+
+    public function destroy(Media $media)
+    {
+        // Delete original and edits from storage
+        if ($media->storage_path) {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($media->storage_path);
+        }
+        if ($media->thumbnail_path) {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($media->thumbnail_path);
+        }
+
+        foreach ($media->edits ?? [] as $edit) {
+            if ($edit->output_path) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($edit->output_path);
+            }
+        }
+
+        $media->delete();
+
+        return redirect()->route('dashboard')->with('success', 'Project deleted successfully.');
+    }
 }

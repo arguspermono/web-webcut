@@ -27,4 +27,16 @@ class StreamController extends Controller
 
         return $this->streamingService->stream($media, $request);
     }
+
+    /**
+     * Display the streaming watch page.
+     */
+    public function watch(Media $media)
+    {
+        if ($media->status !== 'ready') {
+            return redirect()->route('dashboard')->with('error', 'Media not ready for streaming');
+        }
+
+        return view('stream', compact('media'));
+    }
 }

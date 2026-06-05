@@ -62,9 +62,12 @@ class InitialTranscodeJob implements ShouldQueue
                 Storage::disk('public')->makeDirectory('media/transcoded');
                 copy($originalAbsolute, $transcodedAbsolute);
 
+                $duration = $ffmpegService->getDuration($transcodedPath);
+
                 $this->media->update([
                     'storage_path'   => $transcodedPath,
                     'thumbnail_path' => null,
+                    'duration'       => $duration,
                     'status'         => 'ready',
                 ]);
 
@@ -74,11 +77,16 @@ class InitialTranscodeJob implements ShouldQueue
             // ── FFmpeg available: full transcode + thumbnail ──
             $transcodeSuccess = $ffmpegService->transcode($inputPath, $transcodedPath);
             $thumbSuccess     = $ffmpegService->extractThumbnail($transcodedPath, $thumbnailPath);
+            $sequenceDir      = 'media/thumbnails/' . $this->media->id;
+            $sequenceSuccess  = $ffmpegService->extractThumbnailSequence($transcodedPath, $sequenceDir, 1.0); // 1 frame per second
 
-            if ($transcodeSuccess && $thumbSuccess) {
+            if ($transcodeSuccess && $thumbSuccess && $sequenceSuccess) {
+                $duration = $ffmpegService->getDuration($transcodedPath);
+
                 $this->media->update([
                     'storage_path'   => $transcodedPath,
                     'thumbnail_path' => $thumbnailPath,
+                    'duration'       => $duration,
                     'status'         => 'ready',
                 ]);
             } else {

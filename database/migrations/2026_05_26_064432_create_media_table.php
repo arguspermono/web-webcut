@@ -13,7 +13,6 @@ return new class extends Migration
     {
         Schema::create('media', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
             $table->string('original_filename');
             $table->string('storage_path')->nullable();
             $table->string('thumbnail_path')->nullable();

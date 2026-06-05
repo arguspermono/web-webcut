@@ -19,6 +19,35 @@ class FFmpegService
     }
 
     /**
+     * Get the video duration using ffprobe.
+     */
+    public function getDuration(string $inputPath): ?float
+    {
+        $fullInputPath = Storage::disk('public')->path($inputPath);
+        
+        $ffmpegBin = $this->ffmpegBin();
+        $ffprobeBin = dirname($ffmpegBin) . DIRECTORY_SEPARATOR . 'ffprobe' . (str_ends_with(strtolower($ffmpegBin), '.exe') ? '.exe' : '');
+        
+        $command = [
+            $ffprobeBin,
+            '-v', 'error',
+            '-show_entries', 'format=duration',
+            '-of', 'default=noprint_wrappers=1:nokey=1',
+            $fullInputPath
+        ];
+        
+        $process = new Process($command);
+        try {
+            $process->mustRun();
+            $duration = (float) trim($process->getOutput());
+            return $duration > 0 ? $duration : null;
+        } catch (\Throwable $e) {
+            Log::error('FFPROBE Failed: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
      * Transcode the video to standardized MP4 (H.264, YUV420p, faststart).
      */
     public function transcode(string $inputPath, string $outputPath): bool
@@ -57,6 +86,26 @@ class FFmpegService
             '-vframes', '1',
             '-q:v', '2',
             $fullOutputPath
+        ];
+
+        return $this->runProcess($command);
+    }
+
+    /**
+     * Extract a sequence of thumbnails for the visual timeline.
+     */
+    public function extractThumbnailSequence(string $inputPath, string $outputDir, float $fps = 1.0): bool
+    {
+        Storage::disk('public')->makeDirectory($outputDir);
+
+        $fullInputPath = Storage::disk('public')->path($inputPath);
+        $fullOutputDir = Storage::disk('public')->path($outputDir);
+
+        $command = [
+            $this->ffmpegBin(), '-y', '-i', $fullInputPath,
+            '-vf', "fps={$fps},scale=160:90",
+            '-q:v', '5',
+            $fullOutputDir . '/%04d.jpg'
         ];
 
         return $this->runProcess($command);

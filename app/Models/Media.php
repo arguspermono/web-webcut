@@ -12,7 +12,6 @@ class Media extends Model
 
     protected $fillable = [
         'id',
-        'user_id',
         'original_filename',
         'storage_path',
         'thumbnail_path',
@@ -22,4 +21,9 @@ class Media extends Model
         'mime_type',
         'size_bytes'
     ];
+
+    public function edits()
+    {
+        return $this->hasMany(MediaEdit::class);
+    }
 }

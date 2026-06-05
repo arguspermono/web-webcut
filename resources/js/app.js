@@ -1,46 +1,32 @@
 import axios from 'axios';
 import videojs from 'video.js';
-import noUiSlider from 'nouislider';
 
 document.addEventListener('DOMContentLoaded', () => {
 
-    const uploadZone   = document.getElementById('upload-zone');
-    const fileInput    = document.getElementById('file-input');
-    const editorZone   = document.getElementById('editor-zone');
+    const csrfToken = () => document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+    // ─── Dashboard Upload Logic ──────────────────────────────────────────────
+    const uploadZone = document.getElementById('upload-zone');
+    const fileInput = document.getElementById('file-input');
     const uploadLoader = document.getElementById('upload-loader');
-    const btnTrim      = document.getElementById('btn-trim');
 
-    let player        = null;
-    let slider        = null;
-    let sliderValues  = [0, 0];
-    let currentMediaId = null;
-
-    const csrfToken = () =>
-        document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-
-    // ─── Upload ──────────────────────────────────────────────────────────────
-    uploadZone.addEventListener('click', () => fileInput.click());
-
-    uploadZone.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        uploadZone.classList.add('drag-active');
-    });
-    uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-active'));
-    uploadZone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        uploadZone.classList.remove('drag-active');
-        if (e.dataTransfer.files.length) handleUpload(e.dataTransfer.files[0]);
-    });
-    fileInput.addEventListener('change', (e) => {
-        if (e.target.files.length) handleUpload(e.target.files[0]);
-    });
+    if (uploadZone) {
+        uploadZone.addEventListener('click', () => fileInput.click());
+        uploadZone.addEventListener('dragover', (e) => { e.preventDefault(); uploadZone.classList.add('drag-active'); });
+        uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-active'));
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('drag-active');
+            if (e.dataTransfer.files.length) handleUpload(e.dataTransfer.files[0]);
+        });
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length) handleUpload(e.target.files[0]);
+        });
+    }
 
     function handleUpload(file) {
-        if (!file.type.startsWith('video/')) {
-            alert('Please select a valid video file.');
-            return;
-        }
-
+        if (!file.type.startsWith('video/')) { alert('Please select a valid video file.'); return; }
+        
         const formData = new FormData();
         formData.append('video', file);
         formData.append('_token', csrfToken());
@@ -48,149 +34,216 @@ document.addEventListener('DOMContentLoaded', () => {
         uploadLoader.style.display = 'block';
         uploadZone.style.pointerEvents = 'none';
 
-        axios.post('/media/upload', formData, {
-            headers: { 'Content-Type': 'multipart/form-data' }
-        }).then(response => {
-            currentMediaId = response.data.media_id;
-            uploadLoader.innerText = 'Processing video…';
-            pollMediaStatus(currentMediaId);
-        }).catch(err => {
-            console.error(err);
-            alert('Upload failed. Please try again.');
-            uploadLoader.style.display = 'none';
-            uploadZone.style.pointerEvents = 'auto';
-        });
+        axios.post('/project/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
+            .then(response => {
+                const mediaId = response.data.media_id;
+                uploadLoader.innerText = 'Processing video…';
+                pollMediaStatus(mediaId);
+            }).catch(err => {
+                console.error(err);
+                alert('Upload failed.');
+                uploadLoader.style.display = 'none';
+                uploadZone.style.pointerEvents = 'auto';
+            });
     }
 
-    // Poll media status until 'ready'
     function pollMediaStatus(mediaId, attempts = 0) {
-        if (attempts > 60) {
-            uploadLoader.innerText = 'Processing timed out. Please refresh and try again.';
-            uploadZone.style.pointerEvents = 'auto';
-            return;
-        }
+        if (attempts > 60) { alert('Processing timed out.'); return; }
         setTimeout(() => {
-            axios.get(`/media/${mediaId}/status`)
+            axios.get(`/project/${mediaId}/status`)
                 .then(response => {
                     const { status } = response.data;
-                    if (status === 'ready') {
-                        loadEditor(mediaId);
-                    } else if (status === 'failed') {
-                        uploadLoader.innerText = 'Processing failed. Please try again.';
-                        uploadZone.style.pointerEvents = 'auto';
-                    } else {
-                        uploadLoader.innerText = `Processing video… (${status})`;
-                        pollMediaStatus(mediaId, attempts + 1);
-                    }
-                })
-                .catch(() => pollMediaStatus(mediaId, attempts + 1));
+                    if (status === 'ready') window.location.href = `/project/${mediaId}/edit`;
+                    else if (status === 'failed') alert('Processing failed.');
+                    else { uploadLoader.innerText = `Processing… (${status})`; pollMediaStatus(mediaId, attempts + 1); }
+                }).catch(() => pollMediaStatus(mediaId, attempts + 1));
         }, 2000);
     }
 
-    // ─── Editor ───────────────────────────────────────────────────────────────
-    function loadEditor(mediaId) {
-        uploadZone.style.display = 'none';
-        editorZone.style.display = 'block';
 
-        player = videojs('video-player', {
-            controls: true,
-            autoplay: false,
-            preload: 'auto',
-            sources: [{ src: `/stream/${mediaId}`, type: 'video/mp4' }],
+    // ─── Visual Timeline Editor Logic ────────────────────────────────────────
+    const editorTimeline = document.getElementById('visual-timeline');
+    if (editorTimeline && window.WebCutConfig) {
+        const config = window.WebCutConfig;
+        
+        // Initialize player
+        const player = document.getElementById('video-player');
+        
+        // Editor controls
+        const btnPlayPause = document.getElementById('btn-play-pause');
+        const iconPlayPause = document.getElementById('icon-play-pause');
+        const ctrlSpeed = document.getElementById('ctrl-speed');
+        const ctrlMute = document.getElementById('ctrl-mute');
+
+        btnPlayPause.addEventListener('click', () => {
+            if (player.paused) {
+                player.play();
+                iconPlayPause.innerHTML = '<rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect>';
+            } else {
+                player.pause();
+                iconPlayPause.innerHTML = '<polygon points="5 3 19 12 5 21 5 3"></polygon>';
+            }
         });
 
-        player.on('loadedmetadata', () => {
-            sliderValues = [0, player.duration()];
-            initSlider(player.duration());
-        });
-    }
-
-    function formatTime(seconds) {
-        const s   = Number(seconds);
-        const m   = Math.floor(s / 60);
-        const sec = Math.floor(s % 60);
-        const ms  = Math.floor((s - Math.floor(s)) * 100);
-        return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}.${String(ms).padStart(2,'0')}`;
-    }
-
-    function initSlider(duration) {
-        const sliderEl = document.getElementById('timeline-slider');
-        if (slider) slider.destroy();
-
-        slider = noUiSlider.create(sliderEl, {
-            start:   [0, duration],
-            connect: true,
-            range:   { min: 0, max: duration },
+        ctrlSpeed.addEventListener('change', (e) => {
+            player.playbackRate = parseFloat(e.target.value);
         });
 
-        slider.on('update', (values, handle) => {
-            sliderValues[handle] = parseFloat(values[handle]);
-            document.getElementById('time-start').innerText = formatTime(sliderValues[0]);
-            document.getElementById('time-end').innerText   = formatTime(sliderValues[1]);
-            if (player && !player.paused()) player.pause();
-            if (player) player.currentTime(sliderValues[handle]);
-        });
-    }
-
-    // ─── Trim Submission ─────────────────────────────────────────────────────
-    btnTrim.addEventListener('click', () => {
-        if (!currentMediaId) return;
-
-        btnTrim.disabled    = true;
-        btnTrim.innerText   = 'Processing…';
-
-        const payload = new URLSearchParams({
-            _token:     csrfToken(),
-            media_id:   currentMediaId,
-            start_time: sliderValues[0],
-            end_time:   sliderValues[1],
+        ctrlMute.addEventListener('change', (e) => {
+            player.muted = e.target.checked;
         });
 
-        axios.post('/media/edit', payload).then(response => {
-            const editId = response.data.media_edit_id;
-            pollEditStatus(editId);
-        }).catch(err => {
-            console.error(err);
-            alert('Edit request failed.');
-            btnTrim.disabled  = false;
-            btnTrim.innerText = 'Trim Video';
-        });
-    });
+        // Timeline elements
+        const trimLeft = document.getElementById('trim-left');
+        const trimRight = document.getElementById('trim-right');
+        const selectedArea = document.getElementById('timeline-selected');
+        const playhead = document.getElementById('playhead');
+        const timeStartLabel = document.getElementById('time-start');
+        const timeEndLabel = document.getElementById('time-end');
+        const thumbnailsContainer = document.getElementById('timeline-thumbnails');
+        
+        let duration = config.duration;
+        let startPercent = 0;
+        let endPercent = 100;
+        let isDragging = null; // 'left', 'right', 'playhead', null
 
-    function pollEditStatus(editId, attempts = 0) {
-        if (attempts > 60) {
-            alert('Edit processing timed out.');
-            btnTrim.disabled  = false;
-            btnTrim.innerText = 'Trim Video';
-            return;
+        // Load thumbnails (assume 1 frame per second generated by backend)
+        const loadThumbnails = () => {
+            const numThumbs = Math.ceil(duration);
+            for (let i = 1; i <= numThumbs; i++) {
+                const img = document.createElement('img');
+                const frameStr = String(i).padStart(4, '0');
+                img.src = `/storage/media/thumbnails/${config.mediaId}/${frameStr}.jpg`;
+                
+                // If thumbnail fails to load (maybe video shorter than duration ceil), handle gracefully
+                img.onerror = () => { img.style.display = 'none'; };
+                thumbnailsContainer.appendChild(img);
+            }
+        };
+
+        if (duration > 0 && config.status === 'ready') {
+            loadThumbnails();
         }
 
-        setTimeout(() => {
-            axios.get(`/media/edit/${editId}`).then(response => {
-                const { status, download_url } = response.data;
+        const formatTime = (seconds) => {
+            const m = Math.floor(seconds / 60);
+            const s = Math.floor(seconds % 60);
+            const ms = Math.floor((seconds - Math.floor(seconds)) * 100);
+            return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}.${String(ms).padStart(2,'0')}`;
+        };
 
-                if (status === 'ready' && download_url) {
-                    btnTrim.disabled  = false;
-                    btnTrim.innerText = 'Trim Video';
-                    offerDownload(download_url);
-                } else if (status === 'failed') {
-                    alert('Edit processing failed.');
-                    btnTrim.disabled  = false;
-                    btnTrim.innerText = 'Trim Video';
-                } else {
-                    pollEditStatus(editId, attempts + 1);
-                }
-            }).catch(() => pollEditStatus(editId, attempts + 1));
-        }, 2000);
+        const updateUI = () => {
+            trimLeft.style.left = `${startPercent}%`;
+            trimRight.style.left = `${endPercent}%`;
+            selectedArea.style.left = `${startPercent}%`;
+            selectedArea.style.width = `${endPercent - startPercent}%`;
+            
+            timeStartLabel.innerText = formatTime((startPercent / 100) * duration);
+            timeEndLabel.innerText = formatTime((endPercent / 100) * duration);
+        };
+
+        // Dragging logic
+        const getPercent = (clientX) => {
+            const rect = editorTimeline.getBoundingClientRect();
+            let x = clientX - rect.left;
+            let percent = (x / rect.width) * 100;
+            return Math.max(0, Math.min(100, percent));
+        };
+
+        trimLeft.addEventListener('mousedown', (e) => { isDragging = 'left'; e.preventDefault(); });
+        trimRight.addEventListener('mousedown', (e) => { isDragging = 'right'; e.preventDefault(); });
+        editorTimeline.addEventListener('mousedown', (e) => {
+            if(e.target === trimLeft || e.target === trimRight) return;
+            isDragging = 'playhead';
+            const p = getPercent(e.clientX);
+            player.currentTime = (p / 100) * duration;
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            const p = getPercent(e.clientX);
+            
+            if (isDragging === 'left') {
+                startPercent = Math.min(p, endPercent - 1); // 1% minimum gap
+                updateUI();
+                player.currentTime = (startPercent / 100) * duration;
+            } else if (isDragging === 'right') {
+                endPercent = Math.max(p, startPercent + 1);
+                updateUI();
+                player.currentTime = (endPercent / 100) * duration;
+            } else if (isDragging === 'playhead') {
+                player.currentTime = (p / 100) * duration;
+            }
+        });
+
+        window.addEventListener('mouseup', () => { isDragging = null; });
+
+        // Playhead sync
+        player.addEventListener('timeupdate', () => {
+            if (isDragging === 'left' || isDragging === 'right') return;
+            const currentTime = player.currentTime;
+            const p = (currentTime / duration) * 100;
+            playhead.style.left = `${Math.max(0, Math.min(100, p))}%`;
+
+            // Loop within bounds
+            const startTime = (startPercent / 100) * duration;
+            const endTime = (endPercent / 100) * duration;
+            
+            if (currentTime > endTime && !player.paused) {
+                player.currentTime = startTime;
+            }
+        });
+
+        updateUI();
+
+        // Save Project
+        document.getElementById('btn-save-project').addEventListener('click', (e) => {
+            const btn = e.target;
+            btn.disabled = true;
+            btn.innerText = 'Processing...';
+
+            const payload = new URLSearchParams({
+                _token: csrfToken(),
+                media_id: config.mediaId,
+                start_time: (startPercent / 100) * duration,
+                end_time: (endPercent / 100) * duration,
+                speed: ctrlSpeed.value,
+                mute: ctrlMute.checked ? 1 : 0
+            });
+
+            axios.post('/project/edit', payload).then(response => {
+                const editId = response.data.media_edit_id;
+                pollEditStatus(editId, btn);
+            }).catch(err => {
+                console.error(err);
+                alert('Save request failed.');
+                btn.disabled = false;
+                btn.innerText = 'Save & Process';
+            });
+        });
+
+        function pollEditStatus(editId, btn, attempts = 0) {
+            if (attempts > 60) { alert('Processing timed out.'); btn.disabled = false; btn.innerText = 'Save & Process'; return; }
+            setTimeout(() => {
+                axios.get(`/project/edit/${editId}/status`).then(response => {
+                    const { status, download_url } = response.data;
+                    if (status === 'ready' && download_url) {
+                        btn.innerText = 'Saved!';
+                        setTimeout(() => window.location.href = `/project/${config.mediaId}/watch`, 1000);
+                    } else if (status === 'failed') {
+                        alert('Processing failed.');
+                        btn.disabled = false;
+                        btn.innerText = 'Save & Process';
+                    } else {
+                        pollEditStatus(editId, btn, attempts + 1);
+                    }
+                }).catch(() => pollEditStatus(editId, btn, attempts + 1));
+            }, 2000);
+        }
     }
 
-    function offerDownload(url) {
-        const a = document.createElement('a');
-        a.href     = url;
-        a.download = 'webcut-edited.mp4';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+    // ─── Watch Page Logic ────────────────────────────────────────────────────
+    if (document.querySelector('.watch-body')) {
+        videojs('video-player');
     }
-
 });

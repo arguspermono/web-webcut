@@ -29,8 +29,8 @@ class FFmpegServiceTest extends TestCase
 
         // Should chain: atempo=2.0, atempo=2.0
         $this->assertCount(2, $filters);
-        $this->assertEquals('atempo=2', $filters[0]);
-        $this->assertEquals('atempo=2', $filters[1]);
+        $this->assertEquals('atempo=2.0', $filters[0]);
+        $this->assertEquals('atempo=2.0', $filters[1]);
     }
 
     /**
