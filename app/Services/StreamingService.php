@@ -14,7 +14,15 @@ class StreamingService
      */
     public function stream(Media $media, Request $request): StreamedResponse
     {
-        $path = Storage::disk('public')->path($media->storage_path);
+        return $this->streamPath($media->storage_path, $request);
+    }
+
+    /**
+     * Stream a file from a given storage path using HTTP Range requests.
+     */
+    public function streamPath(string $storagePath, Request $request): StreamedResponse
+    {
+        $path = Storage::disk('public')->path($storagePath);
 
         if (!file_exists($path)) {
             abort(404, 'File not found');
@@ -30,9 +38,18 @@ class StreamingService
 
         $start = 0;
         $end = $size - 1;
+        $status = 200;
+
+        $headers = [
+            'Content-Type' => 'video/mp4', // Assuming standardized to mp4 in Phase 4
+            'Content-Disposition' => 'inline',
+            'Cache-Control' => 'max-age=2592000, public',
+            'Expires' => gmdate('D, d M Y H:i:s', time() + 2592000) . ' GMT',
+            'Last-Modified' => $time,
+            'Accept-Ranges' => 'bytes',
+        ];
 
         $range = $request->header('Range');
-        $status = 200;
 
         if ($range) {
             if (preg_match('/bytes=\h*(\d+)-(\d*)[\D.*]?/i', $range, $matches)) {
@@ -41,21 +58,25 @@ class StreamingService
                     $end = intval($matches[2]);
                 }
             }
+
+            // Validasi RFC 7233: Jika start melebihi ukuran file, kembalikan 416 Range Not Satisfiable
+            if ($start >= $size || $end < $start) {
+                $headers['Content-Range'] = "bytes */{$size}";
+                return new StreamedResponse(function () use ($fm) {
+                    fclose($fm);
+                }, 416, $headers);
+            }
+
+            // Mencegah $end melebihi ukuran file (clamp to file boundary)
+            $end = min($end, $size - 1);
             $status = 206; // Partial Content
+            $headers['Content-Range'] = "bytes {$start}-{$end}/{$size}";
         }
 
         $length = $end - $start + 1;
+        $headers['Content-Length'] = $length;
+        
         fseek($fm, $start);
-
-        $headers = [
-            'Content-Type' => 'video/mp4', // Assuming standardized to mp4 in Phase 4
-            'Cache-Control' => 'max-age=2592000, public',
-            'Expires' => gmdate('D, d M Y H:i:s', time() + 2592000) . ' GMT',
-            'Last-Modified' => $time,
-            'Accept-Ranges' => 'bytes',
-            'Content-Length' => $length,
-            'Content-Range' => "bytes {$start}-{$end}/{$size}",
-        ];
 
         return new StreamedResponse(function () use ($fm, $length) {
             $bufferSize = 8192; // 8KB chunks
@@ -63,9 +84,13 @@ class StreamingService
 
             while (!feof($fm) && $bytesSent < $length && (connection_status() == 0)) {
                 $bytesToRead = min($bufferSize, $length - $bytesSent);
-                echo fread($fm, $bytesToRead);
+                $data = fread($fm, $bytesToRead);
+                if ($data === false) {
+                    break;
+                }
+                echo $data;
                 flush();
-                $bytesSent += $bytesToRead;
+                $bytesSent += strlen($data);
             }
 
             fclose($fm);

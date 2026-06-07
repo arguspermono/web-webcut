@@ -21,3 +21,7 @@ Route::delete('/project/{media}', [MediaEditController::class, 'destroy'])->name
 // Stream Watch route
 Route::get('/project/{media}/watch', [StreamController::class, 'watch'])->name('project.watch');
 Route::get('/stream/{media}', [StreamController::class, 'show'])->name('media.stream');
+
+// MediaEdit Watch route
+Route::get('/project/edit/{mediaEdit}/watch', [MediaEditController::class, 'watch'])->name('project.edit.watch');
+Route::get('/stream/edit/{mediaEdit}', [StreamController::class, 'showEdit'])->name('media.edit.stream');

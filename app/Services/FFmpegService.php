@@ -103,7 +103,7 @@ class FFmpegService
 
         $command = [
             $this->ffmpegBin(), '-y', '-i', $fullInputPath,
-            '-vf', "fps={$fps},scale=160:90",
+            '-vf', "fps={$fps},scale=-1:90",
             '-q:v', '5',
             $fullOutputDir . '/%04d.jpg'
         ];

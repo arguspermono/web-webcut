@@ -61,6 +61,18 @@ class MediaEditController extends Controller
         return view('editor', compact('media'));
     }
 
+    /**
+     * Display the streaming watch page for an edited media file.
+     */
+    public function watch(MediaEdit $mediaEdit)
+    {
+        if ($mediaEdit->status !== 'ready' || !$mediaEdit->output_path) {
+            return redirect()->route('dashboard')->with('error', 'Edited media is not ready for streaming.');
+        }
+
+        return view('edit-watch', compact('mediaEdit'));
+    }
+
     public function destroy(Media $media)
     {
         // Delete original and edits from storage
