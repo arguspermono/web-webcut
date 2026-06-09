@@ -46,7 +46,10 @@ class StreamController extends Controller
             return redirect()->route('dashboard')->with('error', 'Media not ready for streaming');
         }
 
-        return view('stream', compact('media'));
+        // Load the latest successful edit so the stream page can reflect edited state
+        $latestEdit = $media->edits()->where('status', 'ready')->latest()->first();
+
+        return view('stream', compact('media', 'latestEdit'));
     }
 
     /**

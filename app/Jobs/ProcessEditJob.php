@@ -12,6 +12,8 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 
+use Illuminate\Support\Facades\Storage;
+
 class ProcessEditJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
@@ -42,6 +44,30 @@ class ProcessEditJob implements ShouldQueue
                 $this->mediaEdit->update([
                     'output_path' => $outputPath,
                     'status'      => 'ready',
+                ]);
+
+                // Extract new thumbnails for the edited video
+                $thumbnailPath = 'media/thumbnails/' . $this->media->id . '.jpg';
+                $sequenceDir   = 'media/thumbnails/' . $this->media->id;
+
+                // Delete old sequence directory to avoid leftover frame images
+                Storage::disk('public')->deleteDirectory($sequenceDir);
+
+                // Extract single poster thumbnail and sequence thumbnails
+                $ffmpegService->extractThumbnail($outputPath, $thumbnailPath);
+                $ffmpegService->extractThumbnailSequence($outputPath, $sequenceDir, 1.0);
+
+                // Get new duration and size from the exported file
+                $newDuration = $ffmpegService->getDuration($outputPath);
+                $newSize     = Storage::disk('public')->size($outputPath);
+
+                // Replace the media's active file with the exported edit
+                // so the watch/stream page always serves the latest exported version
+                $this->media->update([
+                    'storage_path'   => $outputPath,
+                    'thumbnail_path' => $thumbnailPath,
+                    'duration'       => $newDuration ?? $this->media->duration,
+                    'size_bytes'     => $newSize ?: $this->media->size_bytes,
                 ]);
             } else {
                 throw new \Exception("FFmpeg edit failed for MediaEdit ID: {$this->mediaEdit->id}");

@@ -11,7 +11,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const uploadLoader = document.getElementById('upload-loader');
 
     if (uploadZone) {
-        uploadZone.addEventListener('click', () => fileInput.click());
+        uploadZone.addEventListener('click', (e) => {
+            if (e.target !== fileInput && !e.target.closest('label')) {
+                fileInput.click();
+            }
+        });
         uploadZone.addEventListener('dragover', (e) => { e.preventDefault(); uploadZone.classList.add('drag-active'); });
         uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-active'));
         uploadZone.addEventListener('drop', (e) => {
@@ -55,7 +59,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const { status } = response.data;
                     if (status === 'ready') window.location.href = `/project/${mediaId}/edit`;
                     else if (status === 'failed') alert('Processing failed.');
-                    else { uploadLoader.innerText = `Processing… (${status})`; pollMediaStatus(mediaId, attempts + 1); }
+                    else { pollMediaStatus(mediaId, attempts + 1); }
                 }).catch(() => pollMediaStatus(mediaId, attempts + 1));
         }, 2000);
     }
@@ -90,6 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let endPercent = 100;
         let isDragging = null; // 'left', 'right', 'playhead', null
         let isSeeking = false; // Guard: prevent boundary loop during active seeks
+        const draftKey = 'webcut_draft_' + config.mediaId;
 
         // isSeeking is managed inside seekAndPlay — no global listener needed
 
@@ -299,9 +304,61 @@ document.addEventListener('DOMContentLoaded', () => {
                 ctrlMute.checked = false;
                 player.playbackRate = 1.0;
                 player.muted = false;
+                localStorage.removeItem(draftKey);
                 updateUI();
                 player.currentTime = 0;
             });
+        }
+
+        // Save Draft (Local)
+        const btnSaveDraft = document.getElementById('btn-save-draft');
+        if (btnSaveDraft) {
+            btnSaveDraft.addEventListener('click', () => {
+                const draft = {
+                    startPercent,
+                    endPercent,
+                    speed: ctrlSpeed.value,
+                    mute: ctrlMute.checked
+                };
+                localStorage.setItem(draftKey, JSON.stringify(draft));
+                
+                // Visual feedback
+                const originalText = btnSaveDraft.innerText;
+                btnSaveDraft.innerText = 'Saved!';
+                btnSaveDraft.classList.add('text-lime-600');
+                setTimeout(() => {
+                    btnSaveDraft.innerText = originalText;
+                    btnSaveDraft.classList.remove('text-lime-600');
+                }, 2000);
+            });
+        }
+
+        // Load Draft on Init
+        const savedDraft = localStorage.getItem(draftKey);
+        if (savedDraft) {
+            try {
+                const draft = JSON.parse(savedDraft);
+                startPercent = draft.startPercent || 0;
+                endPercent = draft.endPercent || 100;
+                if (draft.speed) ctrlSpeed.value = draft.speed;
+                if (draft.mute) ctrlMute.checked = true;
+                
+                // Wait for player to be ready to apply settings
+                player.addEventListener('loadeddata', () => {
+                    player.playbackRate = parseFloat(ctrlSpeed.value);
+                    player.muted = ctrlMute.checked;
+                    updateUI();
+                }, { once: true });
+                
+                // If already loaded
+                if (player.readyState >= 2) {
+                    player.playbackRate = parseFloat(ctrlSpeed.value);
+                    player.muted = ctrlMute.checked;
+                    updateUI();
+                }
+            } catch (e) {
+                console.error('Failed to parse draft', e);
+            }
         }
 
         // Save Project
@@ -344,8 +401,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 axios.get(`/project/edit/${editId}/status`).then(response => {
                     const { status, download_url } = response.data;
                     if (status === 'ready' && download_url) {
-                        btn.innerText = 'Ready!';
-                        setTimeout(() => window.location.href = `/project/edit/${editId}/watch`, 1000);
+                        btn.innerText = 'Done!';
+                        setTimeout(() => window.location.href = `/project/${config.mediaId}/watch`, 1000);
                     } else if (status === 'failed') {
                         alert('Processing failed.');
                         btn.disabled = false;

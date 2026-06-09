@@ -7,6 +7,7 @@ use App\Http\Controllers\MediaEditController;
 use App\Http\Controllers\DashboardController;
 
 Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+Route::get('/workspace', [DashboardController::class, 'workspace'])->name('workspace');
 
 // Upload and processing status
 Route::post('/project/upload', [MediaUploadController::class, 'store'])->name('project.upload');
