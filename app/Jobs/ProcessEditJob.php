@@ -32,7 +32,8 @@ class ProcessEditJob implements ShouldQueue
     public function handle(FFmpegService $ffmpegService): void
     {
         try {
-            $outputPath = 'media/edits/' . $this->mediaEdit->id . '.mp4';
+            $format = $this->mediaEdit->edit_params['format'] ?? 'mp4';
+            $outputPath = 'media/edits/' . $this->mediaEdit->id . '.' . $format;
 
             $success = $ffmpegService->applyEdits(
                 $this->media->storage_path,

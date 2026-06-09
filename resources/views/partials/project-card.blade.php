@@ -48,9 +48,12 @@
 
     {{-- Info --}}
     <div class="p-6 flex flex-col gap-4 flex-1">
-        <p class="text-lg font-bold text-black truncate" title="{{ $project->original_filename }}">
-            {{ $project->original_filename }}
-        </p>
+        <div class="flex flex-col gap-1">
+            <p class="text-lg font-bold text-black truncate" title="{{ $project->original_filename }}">
+                {{ $project->original_filename }}
+            </p>
+            <p class="text-xs text-gray-500 font-medium tracking-wide">{{ $project->created_at->format('M d, Y · H:i') }}</p>
+        </div>
 
         {{-- Actions --}}
         <div class="flex items-center gap-2 mt-auto flex-wrap">
@@ -68,22 +71,64 @@
                 </a>
             @endif
 
-            <form action="{{ route('project.destroy', $project->id) }}"
-                  method="POST" class="ml-auto">
-                @csrf
-                @method('DELETE')
-                <button type="submit"
-                        onclick="return confirm('Delete this project?')"
-                        class="btn btn-soft btn-error btn-sm rounded-selector hover:text-white px-3 transition-all">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"
-                         viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="3 6 5 6 21 6"/>
-                        <path d="M19 6l-1 14H6L5 6"/>
-                        <path d="M10 11v6M14 11v6"/>
-                        <path d="M9 6V4h6v2"/>
-                    </svg>
-                </button>
-            </form>
+            <div class="dropdown dropdown-top dropdown-end ml-auto">
+                <div tabindex="0" role="button" class="btn btn-ghost btn-sm btn-circle">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+                </div>
+                <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-48 border border-base-200">
+                    <li>
+                        <a onclick="document.getElementById('rename-modal-{{ $project->id }}').showModal()">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                            Rename
+                        </a>
+                    </li>
+                    <li>
+                        <form action="{{ route('project.destroy', $project->id) }}" method="POST" class="w-full p-0 m-0" onsubmit="return confirm('Delete this project?')">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="w-full flex items-center gap-2 text-error text-left py-2 px-3">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                                Delete
+                            </button>
+                        </form>
+                    </li>
+                </ul>
+            </div>
         </div>
     </div>
+
+    {{-- Rename Modal --}}
+    <dialog id="rename-modal-{{ $project->id }}" class="modal text-left">
+        <div class="modal-box">
+            <h3 class="font-bold text-lg mb-4">Rename Project</h3>
+            <p class="text-xs text-gray-500 mb-4">Created: {{ $project->created_at->format('M d, Y') }}</p>
+            <form action="{{ route('project.rename', $project->id) }}" method="POST">
+                @csrf
+                @method('PATCH')
+                <div class="form-control w-full">
+                    <label class="label">
+                        <span class="label-text font-semibold">Project Name</span>
+                    </label>
+                    @php
+                        $extension = pathinfo($project->original_filename, PATHINFO_EXTENSION);
+                        $basename = pathinfo($project->original_filename, PATHINFO_FILENAME);
+                    @endphp
+                    <input type="hidden" name="original_filename_ext" value="{{ $extension }}">
+                    <label class="input input-bordered flex items-center gap-2">
+                        <input type="text" name="original_filename_base" value="{{ $basename }}" class="grow" required />
+                        @if($extension)
+                            <span class="badge badge-ghost font-mono">.{{ $extension }}</span>
+                        @endif
+                    </label>
+                </div>
+                <div class="modal-action">
+                    <button type="button" class="btn" onclick="document.getElementById('rename-modal-{{ $project->id }}').close()">Cancel</button>
+                    <button type="submit" class="btn btn-neutral">Save</button>
+                </div>
+            </form>
+        </div>
+        <form method="dialog" class="modal-backdrop">
+            <button>close</button>
+        </form>
+    </dialog>
 </div>

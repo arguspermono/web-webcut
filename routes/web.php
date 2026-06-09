@@ -17,6 +17,7 @@ Route::get('/project/{media}/status', [MediaUploadController::class, 'status'])-
 Route::get('/project/{media}/edit', [MediaEditController::class, 'edit'])->name('project.edit');
 Route::post('/project/edit', [MediaEditController::class, 'store'])->name('project.edit.store');
 Route::get('/project/edit/{mediaEdit}/status', [MediaEditController::class, 'show'])->name('project.edit.status');
+Route::patch('/project/{media}/rename', [MediaEditController::class, 'rename'])->name('project.rename');
 Route::delete('/project/{media}', [MediaEditController::class, 'destroy'])->name('project.destroy');
 
 // Stream Watch route

@@ -160,6 +160,20 @@ class FFmpegService
             $vFilters[] = "setpts={$pts}*PTS";
         }
 
+        // 4. Resolution (Scale)
+        $resolution = $params['resolution'] ?? 'original';
+        if ($resolution !== 'original') {
+            $heights = [
+                '1080p' => 1080,
+                '720p' => 720,
+                '480p' => 480
+            ];
+            if (isset($heights[$resolution])) {
+                // scale=-2 to ensure width is divisible by 2 (required by libx264)
+                $vFilters[] = "scale=-2:{$heights[$resolution]}";
+            }
+        }
+
         if (!empty($vFilters)) {
             $cmd[] = '-vf';
             $cmd[] = implode(',', $vFilters);
@@ -176,14 +190,26 @@ class FFmpegService
         }
 
         // ── Output encoding ────────────────────────────────────────────────────
-        $cmd = array_merge($cmd, [
-            '-c:v', 'libx264',
-            '-preset', 'fast',
-            '-crf', '23',
-            '-pix_fmt', 'yuv420p',
-            '-movflags', '+faststart',
-            $fullOutput
-        ]);
+        $format = $params['format'] ?? 'mp4';
+
+        if ($format === 'webm') {
+            $cmd = array_merge($cmd, [
+                '-c:v', 'libvpx-vp9',
+                '-crf', '30',
+                '-b:v', '0',
+                '-c:a', 'libopus',
+                $fullOutput
+            ]);
+        } else {
+            $cmd = array_merge($cmd, [
+                '-c:v', 'libx264',
+                '-preset', 'fast',
+                '-crf', '23',
+                '-pix_fmt', 'yuv420p',
+                '-movflags', '+faststart',
+                $fullOutput
+            ]);
+        }
 
         return $this->runProcess($cmd);
     }

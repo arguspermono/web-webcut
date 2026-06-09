@@ -26,7 +26,7 @@ class MediaEditController extends Controller
             'edit_params' => $request->only([
                 'start_time', 'end_time',
                 'crop_w', 'crop_h', 'crop_x', 'crop_y',
-                'speed', 'mute',
+                'speed', 'mute', 'resolution', 'format',
             ]),
             'status' => 'processing',
         ]);
@@ -61,16 +61,32 @@ class MediaEditController extends Controller
         return view('editor', compact('media'));
     }
 
-    /**
-     * Display the streaming watch page for an edited media file.
-     */
     public function watch(MediaEdit $mediaEdit)
     {
         if ($mediaEdit->status !== 'ready' || !$mediaEdit->output_path) {
             return redirect()->route('dashboard')->with('error', 'Edited media is not ready for streaming.');
         }
 
-        return view('edit-watch', compact('mediaEdit'));
+        return view('stream', [
+            'media' => $mediaEdit->media,
+            'mediaEdit' => $mediaEdit
+        ]);
+    }
+
+    public function rename(\Illuminate\Http\Request $request, Media $media)
+    {
+        $request->validate([
+            'original_filename_base' => 'required|string|max:255'
+        ]);
+
+        $ext = $request->input('original_filename_ext');
+        $newName = $request->original_filename_base . ($ext ? '.' . $ext : '');
+
+        $media->update([
+            'original_filename' => $newName
+        ]);
+
+        return back()->with('success', 'Project renamed successfully.');
     }
 
     public function destroy(Media $media)

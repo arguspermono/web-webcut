@@ -165,6 +165,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
         ctrlSpeed.addEventListener('change', (e) => { player.playbackRate = parseFloat(e.target.value); });
         ctrlMute.addEventListener('change',  (e) => { player.muted = e.target.checked; });
+
+        // Speed button group
+        document.querySelectorAll('.speed-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const speed = parseFloat(btn.dataset.speed);
+                player.playbackRate = speed;
+                ctrlSpeed.value = speed;
+                document.querySelectorAll('.speed-btn').forEach(b => {
+                    b.classList.remove('btn-neutral');
+                    b.classList.add('btn-ghost', 'border', 'border-base-200');
+                });
+                btn.classList.remove('btn-ghost', 'border', 'border-base-200');
+                btn.classList.add('btn-neutral');
+            });
+        });
         const loadThumbnails = () => {
             const numThumbs = Math.ceil(duration);
             let targetCount = 6;
@@ -295,6 +310,19 @@ document.addEventListener('DOMContentLoaded', () => {
         updateUI();
 
         // Reset Button
+        const syncSpeedBtns = (speed) => {
+            document.querySelectorAll('.speed-btn').forEach(b => {
+                const isActive = parseFloat(b.dataset.speed) === parseFloat(speed);
+                if (isActive) {
+                    b.classList.remove('btn-ghost', 'border', 'border-base-200');
+                    b.classList.add('btn-neutral');
+                } else {
+                    b.classList.remove('btn-neutral');
+                    b.classList.add('btn-ghost', 'border', 'border-base-200');
+                }
+            });
+        };
+
         const btnReset = document.getElementById('btn-reset');
         if (btnReset) {
             btnReset.addEventListener('click', () => {
@@ -307,6 +335,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 localStorage.removeItem(draftKey);
                 updateUI();
                 player.currentTime = 0;
+                syncSpeedBtns(1);
             });
         }
 
@@ -348,6 +377,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     player.playbackRate = parseFloat(ctrlSpeed.value);
                     player.muted = ctrlMute.checked;
                     updateUI();
+                    syncSpeedBtns(ctrlSpeed.value);
                 }, { once: true });
                 
                 // If already loaded
@@ -355,6 +385,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     player.playbackRate = parseFloat(ctrlSpeed.value);
                     player.muted = ctrlMute.checked;
                     updateUI();
+                    syncSpeedBtns(ctrlSpeed.value);
                 }
             } catch (e) {
                 console.error('Failed to parse draft', e);
@@ -373,7 +404,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 start_time: (startPercent / 100) * duration,
                 end_time: (endPercent / 100) * duration,
                 speed: ctrlSpeed.value,
-                mute: ctrlMute.checked ? 1 : 0
+                mute: ctrlMute.checked ? 1 : 0,
+                resolution: document.getElementById('ctrl-resolution').value,
+                format: document.getElementById('ctrl-format').value
             });
 
             axios.post('/project/edit', payload).then(response => {
