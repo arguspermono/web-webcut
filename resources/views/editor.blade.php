@@ -37,7 +37,7 @@
                         class="w-full h-full object-contain"
                         preload="metadata"
                         playsinline
-                        src="{{ route('media.stream', $media) }}"
+                        src="{{ route('media.stream', $media) }}?t={{ time() }}"
                     ><p>Your browser does not support HTML5 video.</p></video>
 
                     {{-- Play overlay --}}
@@ -110,7 +110,12 @@
                 </a>
                 <div class="min-w-0">
                     <h2 class="text-sm font-bold text-base-content truncate" title="{{ $media->original_filename }}">{{ $media->original_filename }}</h2>
-                    <p class="text-[10px] text-base-content/40 font-medium mt-0.5">{{ $media->created_at->format('M d, Y · H:i') }}</p>
+                    <p class="text-[10px] text-base-content/50 font-medium mt-0.5">
+                        <span class="opacity-70">Up:</span> {{ $media->created_at->timezone('Asia/Jakarta')->format('M d, Y · H:i') }} WIB
+                    </p>
+                    <p class="text-[10px] text-base-content/50 font-medium mt-0.5">
+                        <span class="opacity-70">Mod:</span> {{ $media->updated_at->timezone('Asia/Jakarta')->format('M d, Y · H:i') }} WIB
+                    </p>
                 </div>
             </div>
 
@@ -120,7 +125,8 @@
                 {{-- Primary Actions --}}
                 <div class="flex flex-col gap-1.5">
                     <button class="btn btn-sm bg-lime-300 text-black hover:bg-lime-400 border-none rounded-box font-bold w-full shadow-sm gap-2"
-                            id="btn-save-project">
+                            id="btn-save-project"
+                            onclick="document.getElementById('export-modal').showModal()">
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                         Export Video
                     </button>
@@ -137,7 +143,7 @@
                     <h3 class="text-[10px] font-extrabold uppercase text-base-content/40 tracking-wider">Video Info</h3>
                     <div class="grid grid-cols-2 gap-x-2 gap-y-1 text-xs">
                         <span class="text-base-content/60">Duration</span>
-                        <span class="text-base-content font-bold text-right">{{ gmdate("H:i:s", $media->duration ?? 0) }}</span>
+                        <span class="text-base-content font-bold text-right">{{ gmdate('H:i:s', (int) ($media->duration ?? 0)) }}</span>
                         <span class="text-base-content/60">Resolution</span>
                         <span class="text-base-content font-bold text-right">1080p</span>
                         <span class="text-base-content/60">File Size</span>
@@ -145,32 +151,6 @@
                     </div>
                 </div>
 
-                <div class="divider my-0"></div>
-
-                {{-- Export Settings: side-by-side --}}
-                <div class="space-y-1.5">
-                    <h3 class="text-[10px] font-extrabold uppercase text-base-content/40 tracking-wider">Export Settings</h3>
-                    <div class="grid grid-cols-2 gap-2">
-                        <div class="flex flex-col gap-1">
-                            <label class="text-[10px] font-semibold text-base-content/60 uppercase tracking-wide">Resolution</label>
-                            <select id="ctrl-resolution" class="select select-bordered select-xs w-full font-semibold text-base-content rounded-box focus:outline-none">
-                                <option value="original" selected>Original</option>
-                                <option value="1080p">1080p</option>
-                                <option value="720p">720p</option>
-                                <option value="480p">480p</option>
-                            </select>
-                        </div>
-                        <div class="flex flex-col gap-1">
-                            <label class="text-[10px] font-semibold text-base-content/60 uppercase tracking-wide">Format</label>
-                            <select id="ctrl-format" class="select select-bordered select-xs w-full font-semibold text-base-content rounded-box focus:outline-none">
-                                <option value="mp4" selected>MP4</option>
-                                <option value="webm">WebM</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="divider my-0"></div>
 
                 {{-- Audio + Speed in one row --}}
                 <div class="space-y-1.5">
@@ -207,4 +187,41 @@
 
     </div>
 </div>
+
+{{-- Export Modal --}}
+<dialog id="export-modal" class="modal">
+    <div class="modal-box max-w-sm">
+        <h3 class="font-bold text-lg mb-4">Export Settings</h3>
+
+        <div class="grid grid-cols-2 gap-4 mb-6">
+            <div class="flex flex-col gap-1.5">
+                <label class="text-xs font-semibold text-base-content/60 uppercase tracking-wide">Resolution</label>
+                <select id="ctrl-resolution" class="select select-bordered select-sm w-full font-semibold rounded-box focus:outline-none">
+                    <option value="original" selected>Original</option>
+                    <option value="1080p">1080p</option>
+                    <option value="720p">720p</option>
+                    <option value="480p">480p</option>
+                </select>
+            </div>
+            <div class="flex flex-col gap-1.5">
+                <label class="text-xs font-semibold text-base-content/60 uppercase tracking-wide">Format</label>
+                <select id="ctrl-format" class="select select-bordered select-sm w-full font-semibold rounded-box focus:outline-none">
+                    <option value="mp4" selected>MP4</option>
+                    <option value="webm">WebM</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="modal-action">
+            <form method="dialog">
+                <button class="btn btn-ghost rounded-box">Cancel</button>
+            </form>
+            <button id="btn-confirm-export" class="btn bg-lime-300 text-black hover:bg-lime-400 border-none rounded-box font-bold gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Start Export
+            </button>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop"><button>close</button></form>
+</dialog>
 @endsection

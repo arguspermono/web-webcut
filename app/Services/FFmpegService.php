@@ -48,6 +48,36 @@ class FFmpegService
     }
 
     /**
+     * Get the video resolution (e.g. "1920x1080") using ffprobe.
+     */
+    public function getResolution(string $inputPath): ?string
+    {
+        $fullInputPath = Storage::disk('public')->path($inputPath);
+
+        $ffmpegBin  = $this->ffmpegBin();
+        $ffprobeBin = dirname($ffmpegBin) . DIRECTORY_SEPARATOR . 'ffprobe' . (str_ends_with(strtolower($ffmpegBin), '.exe') ? '.exe' : '');
+
+        $command = [
+            $ffprobeBin,
+            '-v', 'error',
+            '-select_streams', 'v:0',
+            '-show_entries', 'stream=width,height',
+            '-of', 'csv=s=x:p=0',
+            $fullInputPath,
+        ];
+
+        $process = new Process($command);
+        try {
+            $process->mustRun();
+            $output = trim($process->getOutput());
+            return $output ?: null;
+        } catch (\Throwable $e) {
+            Log::error('FFPROBE Resolution Failed: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
      * Transcode the video to standardized MP4 (H.264, YUV420p, faststart).
      */
     public function transcode(string $inputPath, string $outputPath): bool
@@ -133,9 +163,9 @@ class FFmpegService
         $endTime   = isset($params['end_time'])   ? (float) $params['end_time']   : null;
         $cmd[] = '-ss';
         $cmd[] = number_format($startTime, 6, '.', '');
-        if ($endTime !== null) {
-            $cmd[] = '-to';
-            $cmd[] = number_format($endTime, 6, '.', '');
+        if ($endTime !== null && $endTime > $startTime) {
+            $cmd[] = '-t';
+            $cmd[] = number_format($endTime - $startTime, 6, '.', '');
         }
 
         $cmd[] = '-i';
@@ -157,7 +187,9 @@ class FFmpegService
         $speed = isset($params['speed']) ? (float) $params['speed'] : 1.0;
         if ($speed !== 1.0) {
             $pts = round(1 / $speed, 6);
-            $vFilters[] = "setpts={$pts}*PTS";
+            $vFilters[] = "setpts=({$pts})*(PTS-STARTPTS)";
+        } else {
+            $vFilters[] = "setpts=PTS-STARTPTS";
         }
 
         // 4. Resolution (Scale)

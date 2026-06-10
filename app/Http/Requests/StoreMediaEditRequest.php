@@ -23,6 +23,8 @@ class StoreMediaEditRequest extends FormRequest
             'crop_y'     => ['nullable', 'integer', 'min:0'],
             'speed'      => ['nullable', 'numeric', 'between:0.5,4.0'],
             'mute'       => ['nullable', 'boolean'],
+            'resolution' => ['nullable', 'string', 'in:original,1080p,720p,480p'],
+            'format'     => ['nullable', 'string', 'in:mp4,webm'],
         ];
     }
 }

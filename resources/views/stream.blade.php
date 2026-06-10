@@ -41,12 +41,18 @@
                 <div class="relative w-full max-w-5xl {{ $isEdited ? 'max-h-[55vh]' : 'max-h-[65vh]' }} aspect-video bg-black rounded-box shadow-2xl overflow-hidden
                             flex items-center justify-center border border-white/10 z-10"
                      id="video-container">
+                    @php
+                        $cacheBuster = time();
+                        $videoUrl = $isEdited 
+                            ? route('media.edit.stream', $mediaEdit) . '?t=' . $cacheBuster
+                            : route('media.stream', $media->id) . '?t=' . $cacheBuster;
+                    @endphp
                     <video
                         controls
                         class="w-full h-full object-contain"
                         preload="metadata"
                         controlsList="nodownload"
-                        src="{{ $isEdited ? route('media.edit.stream', $mediaEdit) : route('media.stream', $media->id) }}"
+                        src="{{ $videoUrl }}"
                     ><p>Your browser does not support HTML5 video.</p></video>
                 </div>
             </div>
@@ -57,8 +63,14 @@
 
             {{-- Sidebar Header --}}
             <div class="px-6 py-5 border-b border-base-200 shrink-0">
+                @php
+                    // Build a display name with the correct extension for the current file state
+                    $displayBasename = pathinfo($media->original_filename, PATHINFO_FILENAME);
+                    $displayExt      = $media->format ?? pathinfo($media->original_filename, PATHINFO_EXTENSION);
+                    $displayName     = $displayBasename . '.' . $displayExt;
+                @endphp
                 <div class="flex flex-col gap-1 min-w-0">
-                    <h2 class="text-lg font-bold text-base-content truncate" title="{{ $media->original_filename }}">{{ $media->original_filename }}</h2>
+                    <h2 class="text-lg font-bold text-base-content truncate" title="{{ $displayName }}">{{ $displayName }}</h2>
                     <div class="flex items-center gap-2">
                         @if($isEdited)
                             <span class="badge badge-success badge-sm font-bold uppercase">Edited</span>
@@ -78,8 +90,23 @@
             <div class="px-6 py-6 flex-1 space-y-8">
 
                 {{-- Download CTA --}}
+                @php
+                    // Strip the original extension and replace it with the actual current format
+                    // so the download filename always matches the real file content.
+                    $origBasename = pathinfo($media->original_filename, PATHINFO_FILENAME);
+
+                    if ($isEdited) {
+                        $dlExt  = $mediaEdit->edit_params['format'] ?? ($media->format ?? 'mp4');
+                        $dlName = 'edited_' . $origBasename . '.' . $dlExt;
+                    } else {
+                        // After an export the storage_path has been replaced with the edited file,
+                        // so use media.format if available, otherwise fall back to original extension.
+                        $dlExt  = $media->format ?? pathinfo($media->original_filename, PATHINFO_EXTENSION);
+                        $dlName = $origBasename . '.' . $dlExt;
+                    }
+                @endphp
                 <a href="{{ $isEdited ? asset('storage/' . $mediaEdit->output_path) : route('media.stream', $media->id) }}"
-                   download="{{ $isEdited ? 'edited_' . $media->original_filename : $media->original_filename }}"
+                   download="{{ $dlName }}"
                    class="btn bg-lime-300 hover:bg-lime-400 text-black border-none rounded-full w-full font-bold shadow-sm h-14 text-lg">
                     <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"
                          fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -108,8 +135,15 @@
                             <div class="divider my-2"></div>
 
                             <div class="flex flex-col gap-1">
-                                <span class="text-base-content/50 text-[10px] uppercase tracking-widest font-bold">{{ $isEdited ? 'Exported On' : 'Uploaded On' }}</span>
-                                <span class="font-bold text-base-content">{{ ($isEdited ? $mediaEdit->created_at : $media->created_at)->format('M d, Y · H:i') }}</span>
+                                <span class="text-base-content/50 text-[10px] uppercase tracking-widest font-bold">Uploaded On</span>
+                                <span class="font-bold text-base-content">{{ $media->created_at->timezone('Asia/Jakarta')->format('M d, Y · H:i') }} WIB</span>
+                            </div>
+
+                            <div class="divider my-2"></div>
+
+                            <div class="flex flex-col gap-1">
+                                <span class="text-base-content/50 text-[10px] uppercase tracking-widest font-bold">{{ $isEdited ? 'Exported On' : 'Updated On' }}</span>
+                                <span class="font-bold text-base-content">{{ ($isEdited ? $mediaEdit->updated_at : $media->updated_at)->timezone('Asia/Jakarta')->format('M d, Y · H:i') }} WIB</span>
                             </div>
 
                             @if($isEdited)
@@ -145,6 +179,31 @@
                                             <span class="badge badge-error badge-sm font-bold uppercase p-3">Muted</span>
                                         </div>
                                     @endif
+
+                                    @php
+                                        $exportResolution = $mediaEdit->edit_params['resolution'] ?? null;
+                                        $exportFormat     = $mediaEdit->edit_params['format'] ?? null;
+                                    @endphp
+
+                                    @if($exportResolution || $exportFormat)
+                                        <div class="divider my-2"></div>
+                                    @endif
+
+                                    @if($exportResolution)
+                                        <div class="flex justify-between items-center py-2">
+                                            <span class="text-base-content/50 text-[10px] uppercase tracking-widest font-bold">Resolution</span>
+                                            <span class="badge badge-ghost font-mono font-bold p-3">
+                                                {{ $exportResolution === 'original' ? 'Original' : strtoupper($exportResolution) }}
+                                            </span>
+                                        </div>
+                                    @endif
+
+                                    @if($exportFormat)
+                                        <div class="flex justify-between items-center py-2">
+                                            <span class="text-base-content/50 text-[10px] uppercase tracking-widest font-bold">Format</span>
+                                            <span class="badge badge-ghost font-mono font-bold p-3">{{ strtoupper($exportFormat) }}</span>
+                                        </div>
+                                    @endif
                                 @endif
                             @else
                                 <div class="divider my-2"></div>
@@ -152,7 +211,7 @@
                                 <div class="flex justify-between items-center py-2">
                                     <span class="text-base-content/70 font-semibold">Duration</span>
                                     <span class="badge badge-ghost font-mono font-bold p-3">
-                                        {{ gmdate("i:s.v", $media->duration ?? 0) }}
+                                        {{ gmdate('H:i:s', (int) ($media->duration ?? 0)) }}
                                     </span>
                                 </div>
                                 
@@ -162,6 +221,22 @@
                                         {{ number_format(($media->size_bytes ?? 0) / 1048576, 2) }} MB
                                     </span>
                                 </div>
+
+                                <div class="flex justify-between items-center py-2">
+                                    <span class="text-base-content/70 font-semibold">Resolution</span>
+                                    <span class="badge badge-ghost font-mono font-bold p-3">
+                                        {{ $media->resolution ?? '—' }}
+                                    </span>
+                                </div>
+
+                                @if($media->format)
+                                <div class="flex justify-between items-center py-2">
+                                    <span class="text-base-content/70 font-semibold">Format</span>
+                                    <span class="badge badge-ghost font-mono font-bold p-3">
+                                        {{ strtoupper($media->format) }}
+                                    </span>
+                                </div>
+                                @endif
                             @endif
 
                         </div>

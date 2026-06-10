@@ -18,6 +18,7 @@ class Media extends Model
         'status',
         'duration',
         'resolution',
+        'format',
         'mime_type',
         'size_bytes'
     ];

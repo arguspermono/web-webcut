@@ -58,9 +58,11 @@ class ProcessEditJob implements ShouldQueue
                 $ffmpegService->extractThumbnail($outputPath, $thumbnailPath);
                 $ffmpegService->extractThumbnailSequence($outputPath, $sequenceDir, 1.0);
 
-                // Get new duration and size from the exported file
-                $newDuration = $ffmpegService->getDuration($outputPath);
-                $newSize     = Storage::disk('public')->size($outputPath);
+                // Get new duration, size, resolution, and format from the exported file
+                $newDuration   = $ffmpegService->getDuration($outputPath);
+                $newSize       = Storage::disk('public')->size($outputPath);
+                $newResolution = $ffmpegService->getResolution($outputPath);
+                $newFormat     = $this->mediaEdit->edit_params['format'] ?? 'mp4';
 
                 // Replace the media's active file with the exported edit
                 // so the watch/stream page always serves the latest exported version
@@ -69,6 +71,8 @@ class ProcessEditJob implements ShouldQueue
                     'thumbnail_path' => $thumbnailPath,
                     'duration'       => $newDuration ?? $this->media->duration,
                     'size_bytes'     => $newSize ?: $this->media->size_bytes,
+                    'resolution'     => $newResolution ?? $this->media->resolution,
+                    'format'         => $newFormat,
                 ]);
             } else {
                 throw new \Exception("FFmpeg edit failed for MediaEdit ID: {$this->mediaEdit->id}");

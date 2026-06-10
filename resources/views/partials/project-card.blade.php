@@ -52,7 +52,7 @@
             <p class="text-lg font-bold text-black truncate" title="{{ $project->original_filename }}">
                 {{ $project->original_filename }}
             </p>
-            <p class="text-xs text-gray-500 font-medium tracking-wide">{{ $project->created_at->format('M d, Y · H:i') }}</p>
+            <p class="text-xs text-gray-500 font-medium tracking-wide">{{ $project->created_at->timezone('Asia/Jakarta')->format('M d, Y · H:i') }} WIB</p>
         </div>
 
         {{-- Actions --}}
@@ -101,7 +101,7 @@
     <dialog id="rename-modal-{{ $project->id }}" class="modal text-left">
         <div class="modal-box">
             <h3 class="font-bold text-lg mb-4">Rename Project</h3>
-            <p class="text-xs text-gray-500 mb-4">Created: {{ $project->created_at->format('M d, Y') }}</p>
+            <p class="text-xs text-gray-500 mb-4">Created: {{ $project->created_at->timezone('Asia/Jakarta')->format('M d, Y') }}</p>
             <form action="{{ route('project.rename', $project->id) }}" method="POST">
                 @csrf
                 @method('PATCH')

@@ -392,33 +392,40 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // Save Project
-        document.getElementById('btn-save-project').addEventListener('click', (e) => {
-            const btn = e.target;
-            btn.disabled = true;
-            btn.innerText = 'Processing...';
+        // Export button inside modal
+        const btnConfirmExport = document.getElementById('btn-confirm-export');
+        if (btnConfirmExport) {
+            btnConfirmExport.addEventListener('click', () => {
+                const exportModal = document.getElementById('export-modal');
+                exportModal.close();
 
-            const payload = new URLSearchParams({
-                _token: csrfToken(),
-                media_id: config.mediaId,
-                start_time: (startPercent / 100) * duration,
-                end_time: (endPercent / 100) * duration,
-                speed: ctrlSpeed.value,
-                mute: ctrlMute.checked ? 1 : 0,
-                resolution: document.getElementById('ctrl-resolution').value,
-                format: document.getElementById('ctrl-format').value
-            });
+                const btn = document.getElementById('btn-save-project');
+                btn.disabled = true;
+                btn.innerText = 'Processing...';
 
-            axios.post('/project/edit', payload).then(response => {
-                const editId = response.data.media_edit_id;
-                pollEditStatus(editId, btn);
-            }).catch(err => {
-                console.error(err);
-                alert('Save request failed.');
-                btn.disabled = false;
-                btn.innerText = 'Save & Process';
+                const payload = new URLSearchParams({
+                    _token: csrfToken(),
+                    media_id: config.mediaId,
+                    start_time: (startPercent / 100) * duration,
+                    end_time: (endPercent / 100) * duration,
+                    speed: ctrlSpeed.value,
+                    mute: ctrlMute.checked ? 1 : 0,
+                    resolution: document.getElementById('ctrl-resolution').value,
+                    format: document.getElementById('ctrl-format').value
+                });
+
+                axios.post('/project/edit', payload).then(response => {
+                    const editId = response.data.media_edit_id;
+                    pollEditStatus(editId, btn);
+                }).catch(err => {
+                    console.error(err);
+                    alert('Save request failed.');
+                    btn.disabled = false;
+                    btn.innerText = 'Export Video';
+                });
             });
-        });
+        }
+
 
         function pollEditStatus(editId, btn, attempts = 0) {
             if (attempts > 60) { alert('Processing timed out.'); btn.disabled = false; btn.innerText = 'Save & Process'; return; }
