@@ -29,7 +29,7 @@ class DashboardController extends Controller
             $query->where('original_filename', 'like', '%' . $request->search . '%');
         }
 
-        // Filter by edited/raw
+        // Filter by edited/raw 
         if ($request->filled('filter')) {
             if ($request->filter === 'raw') {
                 $query->doesntHave('edits');
